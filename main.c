@@ -5,15 +5,49 @@
 #include <stdlib.h>
 #include <string.h>
 
-char* readNmap(file)
+
+struct string_list {
+   struct string_list *previous;
+   char *ip;
+   struct string_list *next;
+};
+struct string_list* insert(struct string_list *end, char *ip)
+// insert a new string at the end of the list or start the list
 {
-    
+    //create a link
+    struct string_list *link = (struct string_list*) malloc(sizeof(struct string_list));
+
+    link->ip = ip;
+    link->previous=end;
+    link->next = NULL;
+
+    if (end!=NULL)
+    {
+        end->next=link;
+    }
+
+    return link;
 }
+void print_backwards(struct string_list *s)
+{
+    if (s!=NULL)
+    {
+        printf("%s\n",s->ip);
+        if (s->previous!=NULL)
+        {
+            print_backwards(s->previous);
+        }
+    }
+}
+
 
 int main ()
 {
     // PORT NUMBER to be used
     const char PORT[] = "46";
+    const char *SPACE=" ";
+    const char *SLASH="/";
+
 
     struct ifaddrs *ifap, *ifa;
     // structure ref:
@@ -29,9 +63,19 @@ int main ()
     // sin_port: It refers to a 16-bit port number on which the server will
     //           listen to the connection requests by the clients.
 
-    char addr[30];
-    int mask;
+    // used variables
+    char addr[30]; // current ip address
+    int mask; // subnet mask (for nmap)
+    struct string_list *addresses=NULL; //list of addresses found by nmap
+
+    // temp variables
     int mask_maker;
+    char command[50];
+    FILE *pipe_fp;
+    char line[100]="\0";
+    char *ptr;
+    char ip[20];
+
     getifaddrs (&ifap);
     for (ifa = ifap; ifa; ifa = ifa->ifa_next)
     {
@@ -58,11 +102,13 @@ int main ()
                     mask++;
                 }
 
-                char command[50];
+                /*
+                find relevant ip addresses on local network with nmap and
+                keep the ones with not closed PORT
+                */
                 sprintf(command, "nmap -oG - -p %s %s/%d",PORT,addr,mask); // needs subnet mask
                 // printf("%s",command);
 
-                FILE *pipe_fp;
                 /* Create one way pipe line with call to popen() */
                 if (( pipe_fp = popen(command, "r")) == NULL)
                 {
@@ -70,16 +116,54 @@ int main ()
                         exit(1);
                 }
                 // parse output
-                char ch;
-                while((ch = fgetc(pipe_fp)) != EOF )
-                    printf("%c", ch);
+                for(char *check= fgets( line, 100, pipe_fp ); check!=NULL; check= fgets( line, 100, pipe_fp ))
+                {
+                    // line and check are the same string
+                    if (line[0]=='H')
+                    {
+                        // printf(line);
+                        // split line in words
+                        strtok(line, SPACE); // useless word in output
+                        strcpy(ip, strtok(NULL, SPACE));
+                        // printf("%s\n",ip);
+                        strtok(NULL, SPACE); //useless word in output
+                        ptr=strtok(NULL, SPACE); // last part of the string says if interface is up
+                        // printf("%s",ptr);
+                        strtok(ptr, SLASH);
+                        ptr=strtok(NULL, SLASH);
+                        // printf("slash: %s\n",ptr);
+                        if (ptr!=NULL)
+                        {
+                            if (!strcmp("open",ptr))
+                            {
+                                /* This means ip holds an open ip address */
+                                /* add it to the list */
+                                if (strcmp(ip,addr))
+                                    addresses=insert(addresses,ip);
+                            }
+                        }
+                    }
+                }
+
                 /* Close the pipe */
                 pclose(pipe_fp);
-
             }
         }
     }
 
     freeifaddrs(ifap);
+
+
+    /*
+    addresses now contains the ip addresses to check
+    for authenticity and synchronize
+    (the last link is stored)
+    (all interfaces except loopback are included)
+    */
+    if (addresses!=NULL)
+    {
+        print_backwards(addresses);
+    }
+
     return 0;
 }
