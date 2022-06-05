@@ -27,14 +27,14 @@ TODO: Ask all hosts to provide a list of all the hosts they have access to,
         and piggy-back their connection to access all
 TODO: Sync possible host list, re-check all available hosts to see
         if new ones are actually authentified
+TODO: Manage list of files to synchronize from each host, with the hose list
 TODO: create public keys and hijack connections from other connected
         computers to pair the new additions to all hosts on the network
 TODO: see connection types ? (direct ethernet connections can be let unsecure
         for faster transfer speeds)
 TODO: Sync the file locations and correct mis-matches
 TODO: test ssh connection to each host (dummy connection attempt to check public key)
-TODO: Get list of data to synchronize from each host
-TODO: Basic sync network (basic double pass on star shape
+DONE: Basic sync network (basic double pass on star shape
                             from base machine)
 TODO: Better sync network (at least identify the best machine to use
                             for each set of data to sync)
@@ -364,23 +364,30 @@ int main ()
             }
         }
     }
-    for(temp_host_list=hostList;temp_host_list!=NULL;temp_host_list=temp_host_list->previous)
+
+    while(1)
     {
-        if (temp_host_list->ip == NULL)
+        if (hostList->ip == NULL)
         {
-            if (temp_host_list->previous!=NULL)
-                temp_host_list->previous->next=temp_host_list->next;
-            if (temp_host_list->next!=NULL)
+            if (hostList->previous!=NULL)
             {
-                temp_host_list->next->previous=temp_host_list->previous;
-                temp_host_list=temp_host_list->next; // for loop coherence
+                hostList->previous->next=hostList->next;
             }
-            // TODO: this makes an unreachable object, memory leak -- solve it
+            if (hostList->next!=NULL)
+            {
+                hostList->next->previous=hostList->previous;
+                hostList=hostList->next;
+            }
+            else if (hostList->previous==NULL)
+                hostList=NULL;
+        }
+        if (hostList != NULL && hostList->previous!=NULL)
+        {
+            hostList=hostList->previous;
         }
         else
-        {
-            printf("\nAuthentified host: %s (%s)\n",temp_host_list->name, temp_host_list->ip);
-        }
+        {break;}
+// TODO: this makes an unreachable object, memory leak -- solve it
     }
 
 // TODO: Ask all hosts to provide a list of all the hosts they have access to,
@@ -394,17 +401,20 @@ int main ()
 // TODO: Sync the file locations and correct mis-matches
 // TODO: test ssh connection to each host (dummy connection attempt to check public key)
 // TODO: Get list of data to synchronize from each host
-// TODO: Basic sync network (basic double pass on star shape
+// DONE: Basic sync network (basic double pass on star shape
 //                             from base machine)
 
     if (hostList!=NULL)
     {
-        do
+        // hostList is stored from first for now -> advance forward
+        // probably should make a function to loop over the list in either
+        // direction somehow, this is dirty and won't scale
+        while(1)
         {
             printf("\nSynching: %s (%s)\n",hostList->name, hostList->ip);
             // system("unison -sshargs='-p 46 -i ~/.ssh/Salem' /tmp/testing ssh://valerium@192.168.0.12//tmp/testing");
             // advance backwards in the list
-            do
+            while(1)
             {
                 sprintf(command,
                     "unison -sshargs='-p %s -i ~/.ssh/%s' %s ssh://%s@%s/%s",
@@ -416,21 +426,33 @@ int main ()
                     hostList->destination->ip);
                 printf("\n\n====================\n%s\n====================\n",command);
                 system(command);
-                hostList->origin=hostList->origin->previous;
-                hostList->destination=hostList->destination->previous;
+                if (hostList->origin->previous!=NULL)
+                {
+                    hostList->origin=hostList->origin->previous;
+                    hostList->destination=hostList->destination->previous;
+                }
+                else
+                {
+                    break;
+                }
             }
-            while(hostList->origin->previous != NULL);
-            hostList=hostList->previous;
-        }
-        while(hostList->previous!=NULL);
-        do
-        {
-            // advance back forward in the list to propagate all changes
-            // from last hosts to first hosts
-            do
+            if (hostList->next!=NULL)
             {
-                hostList->origin=hostList->origin->next;
-                hostList->destination=hostList->destination->next;
+                hostList=hostList->next;
+            }
+            else
+            {break;}
+        }
+
+
+        while(hostList->previous != NULL)
+        {
+            // advance back backwards in the host list to propagate
+            // all changes from last hosts to first hosts
+            // we can ignore the first host since it was just synched
+            hostList=hostList->previous;
+            while(1)
+            {
                 sprintf(command,
                     "unison -sshargs='-p %s -i ~/.ssh/%s' %s ssh://%s@%s/%s",
                     PORT,
@@ -439,13 +461,20 @@ int main ()
                     hostList->username,
                     hostList->ip,
                     hostList->destination->ip);
-                printf("%s\n",command);
+                printf("\n\n====================\n%s\n====================\n",command);
                 system(command);
+
+                if (hostList->origin->next!=NULL)
+                {
+                    hostList->origin=hostList->origin->next;
+                    hostList->destination=hostList->destination->next;
+                }
+                else
+                {
+                    break;
+                }
             }
-            while (hostList->destination->next != NULL);
-            hostList=hostList->next;
         }
-        while(hostList->next != NULL);
     }
     else
     {
