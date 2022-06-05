@@ -45,6 +45,7 @@ TODO: Optimized sync network
          version of everything by having probably a first pass in star
          shape then propagating the process through binary division)
 TODO: Cleanup string list and stuff
+TODO: add a way to add options (e.g. use shasum instead of date)
 */
 
 
@@ -490,6 +491,7 @@ int main ()
 //          version of everything by having probably a first pass in star
 //          shape then propagating the process through binary division)
 // TODO: Cleanup string list and stuff
+// TODO: add a way to add options (e.g. use shasum instead of date)
 
     return 0;
 }
