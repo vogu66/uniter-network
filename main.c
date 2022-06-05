@@ -6,6 +6,8 @@
 #include <string.h>
 
 
+#define IP_LENGTH 20
+
 
 /*
 Program structure:
@@ -23,7 +25,8 @@ TODO: create public keys and hijack connections from other connected
         computers to pair the new additions to all hosts on the network
 TODO: see connection types ? (direct ethernet connections can be let unsecure
         for faster transfer speeds)
-TODO: test ssh connection to each host
+TODO: Sync the file locations and correct mis-matches
+DONE: test ssh connection to each host (through ssh-keyscan)
 TODO: Get list of data to synchronize from each host
 TODO: Basic sync network (basic double pass on star shape
                             from base machine)
@@ -50,7 +53,8 @@ struct string_list* insert(struct string_list *end, char *ip)
     //create a link
     struct string_list *link = (struct string_list*) malloc(sizeof(struct string_list));
 
-    link->ip = ip;
+    link->ip= (char *) malloc(IP_LENGTH);
+    strcpy(link->ip,ip);
     link->previous=end;
     link->next = NULL;
 
@@ -58,7 +62,6 @@ struct string_list* insert(struct string_list *end, char *ip)
     {
         end->next=link;
     }
-
     return link;
 }
 void print_backwards(struct string_list *s)
@@ -74,13 +77,15 @@ void print_backwards(struct string_list *s)
 }
 
 
+
+
+
 int main ()
 {
     // PORT NUMBER to be used
     const char PORT[] = "46";
     const char *SPACE=" ";
     const char *SLASH="/";
-
 
     struct ifaddrs *ifap, *ifa;
     // structure ref:
@@ -105,9 +110,9 @@ int main ()
     int mask_maker;
     char command[50];
     FILE *pipe_fp;
-    char line[100]="\0";
+    char line[152]="\0";
     char *ptr;
-    char ip[20];
+    char ip[IP_LENGTH];
 
 // DONE: Get list of running network interfaces
     getifaddrs (&ifap);
@@ -130,7 +135,6 @@ int main ()
                 // get net mask
                 // https://www.freecodecamp.org/news/subnet-cheat-sheet-24-subnet-mask-30-26-27-29-and-other-ip-address-cidr-network-references/
                 sa_mask = (struct sockaddr_in *) ifa->ifa_netmask;
-                mask_maker=sa_mask->sin_addr.s_addr;
                 mask=0;
                 for(mask_maker=sa_mask->sin_addr.s_addr;mask_maker%2;mask_maker>>=1)
                 {
@@ -155,12 +159,12 @@ int main ()
                         exit(1);
                 }
                 // parse output
-                for(char *check= fgets( line, 100, pipe_fp ); check!=NULL; check= fgets( line, 100, pipe_fp ))
+                for(char *check= fgets( line, 150, pipe_fp ); check!=NULL; check= fgets( line, 150, pipe_fp ))
                 {
                     // line and check are the same string
                     if (line[0]=='H')
                     {
-                        // printf(line);
+                        printf(line);
                         // split line in words
                         strtok(line, SPACE); // useless word in output
                         strcpy(ip, strtok(NULL, SPACE));
@@ -173,17 +177,18 @@ int main ()
                         // printf("slash: %s\n",ptr);
                         if (ptr!=NULL)
                         {
-                            if (!strcmp("open",ptr))
+                            if (strcmp("closed",ptr))
                             {
                                 /* This means ip holds an open ip address */
                                 /* add it to the list */
                                 if (strcmp(ip,addr))
+                                {
                                     addresses=insert(addresses,ip);
+                                }
                             }
                         }
                     }
                 }
-
                 /* Close the pipe */
                 pclose(pipe_fp);
             }
@@ -191,7 +196,6 @@ int main ()
     }
 
     freeifaddrs(ifap);
-
 
     /*
     addresses now contains the ip addresses to check
@@ -201,7 +205,7 @@ int main ()
     */
     if (addresses!=NULL)
     {
-        printf("Discovered open pairs:\n");
+        printf("\n\nDiscovered open pairs:\n");
         print_backwards(addresses);
     }
     else
