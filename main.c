@@ -93,6 +93,7 @@ struct host_list {
    char *name;
    char *algo;
    char *key;
+   char *username;
    char *ip;
    struct string_list *origin;
    struct string_list *destination;
@@ -102,6 +103,7 @@ struct host_list* insert_host(struct host_list *end,
                                 char *name,
                                 char *algo,
                                 char *key,
+                                char *username,
                                 struct string_list *origin,
                                 struct string_list *destination)
 // insert a new string at the end of the list or start the list
@@ -115,6 +117,8 @@ struct host_list* insert_host(struct host_list *end,
     strcpy(link->algo,algo);
     link->key= (char *) malloc(KEY_LENGTH);
     strcpy(link->key,key);
+    link->username= (char *) malloc(NAME_LENGTH);
+    strcpy(link->username,username);
     link->origin=origin;
     link->destination=destination;
     link->previous=end;
@@ -169,7 +173,7 @@ int main ()
 
     // temp variables
     int temp;
-    char command[50];
+    char command[MAX_LINE_LENGTH];
     FILE *pipe_fp;
     char line[MAX_LINE_LENGTH]="\0";
     char *ptr;
@@ -305,7 +309,7 @@ int main ()
                 // word1 = algo
                 // word2 = key
                 // word3 = name
-                hostList=insert_host(hostList, word3, word1, word2,NULL,NULL);
+                hostList=insert_host(hostList, word3, word1, word2,word4,NULL,NULL);
             }
             else
             {
@@ -378,13 +382,6 @@ int main ()
             printf("\nAuthentified host: %s (%s)\n",temp_host_list->name, temp_host_list->ip);
         }
     }
-    // for(temp_host_list=hostList;temp_host_list!=NULL;temp_host_list=temp_host_list->previous)
-    // {
-    //     printf("\nAuthentified host: %s (%s)\n",temp_host_list->name, temp_host_list->ip);
-    // }
-
-    
-
 
 // TODO: Ask all hosts to provide a list of all the hosts they have access to,
 //         and piggy-back their connection to access all
@@ -395,10 +392,66 @@ int main ()
 // TODO: see connection types ? (direct ethernet connections can be let unsecure
 //         for faster transfer speeds)
 // TODO: Sync the file locations and correct mis-matches
-// DONE: test ssh connection to each host (through ssh-keyscan)
+// TODO: test ssh connection to each host (dummy connection attempt to check public key)
 // TODO: Get list of data to synchronize from each host
 // TODO: Basic sync network (basic double pass on star shape
 //                             from base machine)
+
+    if (hostList!=NULL)
+    {
+        do
+        {
+            printf("\nSynching: %s (%s)\n",hostList->name, hostList->ip);
+            // system("unison -sshargs='-p 46 -i ~/.ssh/Salem' /tmp/testing ssh://valerium@192.168.0.12//tmp/testing");
+            // advance backwards in the list
+            do
+            {
+                sprintf(command,
+                    "unison -sshargs='-p %s -i ~/.ssh/%s' %s ssh://%s@%s/%s",
+                    PORT,
+                    hostList->name,
+                    hostList->origin->ip,
+                    hostList->username,
+                    hostList->ip,
+                    hostList->destination->ip);
+                printf("\n\n====================\n%s\n====================\n",command);
+                system(command);
+                hostList->origin=hostList->origin->previous;
+                hostList->destination=hostList->destination->previous;
+            }
+            while(hostList->origin->previous != NULL);
+            hostList=hostList->previous;
+        }
+        while(hostList->previous!=NULL);
+        do
+        {
+            // advance back forward in the list to propagate all changes
+            // from last hosts to first hosts
+            do
+            {
+                hostList->origin=hostList->origin->next;
+                hostList->destination=hostList->destination->next;
+                sprintf(command,
+                    "unison -sshargs='-p %s -i ~/.ssh/%s' %s ssh://%s@%s/%s",
+                    PORT,
+                    hostList->name,
+                    hostList->origin->ip,
+                    hostList->username,
+                    hostList->ip,
+                    hostList->destination->ip);
+                printf("%s\n",command);
+                system(command);
+            }
+            while (hostList->destination->next != NULL);
+            hostList=hostList->next;
+        }
+        while(hostList->next != NULL);
+    }
+    else
+    {
+        perror("No authentified host found");
+        return 0;
+    }
 // TODO: Better sync network (at least identify the best machine to use
 //                             for each set of data to sync)
 // TODO: Optimized sync network
