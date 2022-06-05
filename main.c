@@ -6,6 +6,39 @@
 #include <string.h>
 
 
+
+/*
+Program structure:
+
+DONE: Get list of running network interfaces
+DONE: Scan network interfaces for open hosts
+TODO: Authentify open hosts
+TODO: Remove duplicate hosts (from different interfaces,
+                              priority lists of interfaces)
+TODO: Ask all hosts to provide a list of all the hosts they have access to,
+        and piggy-back their connection to access all
+TODO: Sync possible host list, re-check all available hosts to see
+        if new ones are actually authentified
+TODO: create public keys and hijack connections from other connected
+        computers to pair the new additions to all hosts on the network
+TODO: see connection types ? (direct ethernet connections can be let unsecure
+        for faster transfer speeds)
+TODO: test ssh connection to each host
+TODO: Get list of data to synchronize from each host
+TODO: Basic sync network (basic double pass on star shape
+                            from base machine)
+TODO: Better sync network (at least identify the best machine to use
+                            for each set of data to sync)
+TODO: Optimized sync network
+        (which computer needs to sync what, parrallel sync
+         when possible, launch unison on multiple computers for
+         faster processing, and make sure all of them have the last
+         version of everything by having probably a first pass in star
+         shape then propagating the process through binary division)
+TODO: Cleanup string list and stuff
+*/
+
+
 struct string_list {
    struct string_list *previous;
    char *ip;
@@ -76,7 +109,9 @@ int main ()
     char *ptr;
     char ip[20];
 
+// DONE: Get list of running network interfaces
     getifaddrs (&ifap);
+// DONE: Scan network interfaces for open hosts
     for (ifa = ifap; ifa; ifa = ifa->ifa_next)
     {
         if (ifa->ifa_addr && ifa->ifa_addr->sa_family==AF_INET)
@@ -164,6 +199,35 @@ int main ()
     {
         print_backwards(addresses);
     }
+
+
+// TODO: Authentify open hosts
+
+
+
+// TODO: Remove duplicate hosts (from different interfaces,
+//                               priority lists of interfaces)
+// TODO: Ask all hosts to provide a list of all the hosts they have access to,
+//         and piggy-back their connection to access all
+// TODO: Sync possible host list, re-check all available hosts to see
+//         if new ones are actually authentified
+// TODO: create public keys and hijack connections from other connected
+//         computers to pair the new additions to all hosts on the network
+// TODO: see connection types ? (direct ethernet connections can be let unsecure
+//         for faster transfer speeds)
+// TODO: test ssh connection to each host
+// TODO: Get list of data to synchronize from each host
+// TODO: Basic sync network (basic double pass on star shape
+//                             from base machine)
+// TODO: Better sync network (at least identify the best machine to use
+//                             for each set of data to sync)
+// TODO: Optimized sync network
+//         (which computer needs to sync what, parrallel sync
+//          when possible, launch unison on multiple computers for
+//          faster processing, and make sure all of them have the last
+//          version of everything by having probably a first pass in star
+//          shape then propagating the process through binary division)
+// TODO: Cleanup string list and stuff
 
     return 0;
 }
