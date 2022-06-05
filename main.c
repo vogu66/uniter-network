@@ -7,6 +7,11 @@
 
 
 #define IP_LENGTH 20
+#define NAME_LENGTH 32
+#define ALGO_LENGTH 16
+#define KEY_LENGTH 100
+#define PATH_LENGTH 512
+#define MAX_LINE_LENGTH 2048
 
 
 /*
@@ -47,13 +52,13 @@ struct string_list {
    char *ip;
    struct string_list *next;
 };
-struct string_list* insert(struct string_list *end, char *ip)
+struct string_list* insert_string(struct string_list *end, char *ip, int length)
 // insert a new string at the end of the list or start the list
 {
     //create a link
     struct string_list *link = (struct string_list*) malloc(sizeof(struct string_list));
 
-    link->ip= (char *) malloc(IP_LENGTH);
+    link->ip= (char *) malloc(length);
     strcpy(link->ip,ip);
     link->previous=end;
     link->next = NULL;
@@ -63,6 +68,10 @@ struct string_list* insert(struct string_list *end, char *ip)
         end->next=link;
     }
     return link;
+}
+struct string_list* insert_ip(struct string_list *end, char *ip)
+{
+    return (struct string_list *) insert_string(end, ip, IP_LENGTH);
 }
 void print_backwards(struct string_list *s)
 {
@@ -78,6 +87,54 @@ void print_backwards(struct string_list *s)
 
 
 
+struct host_list {
+   struct host_list *previous;
+   char *name;
+   char *algo;
+   char *key;
+   struct string_list *origin;
+   struct string_list *destination;
+   struct host_list *next;
+};
+struct host_list* insert_host(struct host_list *end,
+                                char *name,
+                                char *algo,
+                                char *key,
+                                struct string_list *origin,
+                                struct string_list *destination)
+// insert a new string at the end of the list or start the list
+{
+    //create a link
+    struct host_list *link = (struct host_list*) malloc(sizeof(struct host_list));
+
+    link->name= (char *) malloc(NAME_LENGTH);
+    strcpy(link->name,name);
+    link->algo= (char *) malloc(ALGO_LENGTH);
+    strcpy(link->algo,algo);
+    link->key= (char *) malloc(KEY_LENGTH);
+    strcpy(link->key,key);
+    link->origin=origin;
+    link->destination=destination;
+    link->previous=end;
+    link->next = NULL;
+
+    if (end!=NULL)
+    {
+        end->next=link;
+    }
+    return link;
+}
+void print_hosts(struct host_list *s)
+{
+    if (s!=NULL)
+    {
+        // printf("%s\n",s->ip);
+        if (s->previous!=NULL)
+        {
+            print_hosts(s->previous);
+        }
+    }
+}
 
 
 int main ()
@@ -105,14 +162,20 @@ int main ()
     char addr[30]; // current ip address
     int mask; // subnet mask (for nmap)
     struct string_list *addresses=NULL; //list of addresses found by nmap
+    struct host_list *hostList=NULL;
 
     // temp variables
-    int mask_maker;
+    int temp;
     char command[50];
     FILE *pipe_fp;
-    char line[152]="\0";
+    char line[MAX_LINE_LENGTH]="\0";
     char *ptr;
     char ip[IP_LENGTH];
+    char path[PATH_LENGTH];
+    char word1[PATH_LENGTH];
+    char word2[PATH_LENGTH];
+    char word3[PATH_LENGTH];
+    char word4[PATH_LENGTH];
 
 // DONE: Get list of running network interfaces
     getifaddrs (&ifap);
@@ -136,7 +199,7 @@ int main ()
                 // https://www.freecodecamp.org/news/subnet-cheat-sheet-24-subnet-mask-30-26-27-29-and-other-ip-address-cidr-network-references/
                 sa_mask = (struct sockaddr_in *) ifa->ifa_netmask;
                 mask=0;
-                for(mask_maker=sa_mask->sin_addr.s_addr;mask_maker%2;mask_maker>>=1)
+                for(temp=sa_mask->sin_addr.s_addr;temp%2;temp>>=1)
                 {
                     mask++;
                 }
@@ -183,7 +246,7 @@ int main ()
                                 /* add it to the list */
                                 if (strcmp(ip,addr))
                                 {
-                                    addresses=insert(addresses,ip);
+                                    addresses=insert_ip(addresses,ip);
                                 }
                             }
                         }
@@ -214,10 +277,49 @@ int main ()
         return 0;
     }
 
-
 // TODO: Authentify open hosts
+    // first read host file
+    sprintf(path, "%s/.bin/backup_hosts/hostlist",getenv("HOME"));
+    if ((pipe_fp = fopen(path, "r")) == NULL)
+    {
+            perror("failed to open host list file");
+            exit(1);
+    }
+
+    for(char *check= fgets( line, MAX_LINE_LENGTH, pipe_fp ); check!=NULL; check= fgets( line, MAX_LINE_LENGTH, pipe_fp ))
+    {
+        temp=sscanf( line, "%s %s %s %s", word1,  word2,  word3,  word4);
+        if (temp>=2)
+        {
+            if (temp==3)
+                strcpy(word4,word3);
+            if (word1[0]!='*')
+            {
+                // new host
+                // word1 = algo
+                // word2 = key
+                // word3 = name
+                hostList=insert_host(hostList, word3, word1, word2,NULL,NULL);
+            }
+            else
+            {
+                if (hostList==NULL)
+                {
+                    perror("first line of host list file cannot be a location");
+                    return -1;
+                }
+                // word2 = name
+                // word3 = origin
+                // word4 = destination
+                hostList->origin=insert_string(hostList->origin, word3, PATH_LENGTH);
+                hostList->destination=insert_string(hostList->destination, word4, PATH_LENGTH);
+            }
+        }
+    }
 
 
+    // then scan ip signatures
+    // finally compare hosts and ip signatures
 
 // TODO: Remove duplicate hosts (from different interfaces,
 //                               priority lists of interfaces)
@@ -229,7 +331,8 @@ int main ()
 //         computers to pair the new additions to all hosts on the network
 // TODO: see connection types ? (direct ethernet connections can be let unsecure
 //         for faster transfer speeds)
-// TODO: test ssh connection to each host
+// TODO: Sync the file locations and correct mis-matches
+// DONE: test ssh connection to each host (through ssh-keyscan)
 // TODO: Get list of data to synchronize from each host
 // TODO: Basic sync network (basic double pass on star shape
 //                             from base machine)
