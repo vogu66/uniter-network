@@ -137,6 +137,10 @@ int main ()
                     mask++;
                 }
 
+                /* Gimmick */
+                printf("Scanning interface: %s\n",ifa->ifa_name);
+                printf("IP address: %s\n\n",addr);
+
                 /*
                 find relevant ip addresses on local network with nmap and
                 keep the ones with not closed PORT
@@ -197,7 +201,13 @@ int main ()
     */
     if (addresses!=NULL)
     {
+        printf("Discovered open pairs:\n");
         print_backwards(addresses);
+    }
+    else
+    {
+        perror("No discovered open port on the network");
+        return 0;
     }
 
 
