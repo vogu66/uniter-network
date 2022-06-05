@@ -19,7 +19,8 @@ Program structure:
 
 DONE: Get list of running network interfaces
 DONE: Scan network interfaces for open hosts
-TODO: Authentify open hosts
+DONE: Authentify open hosts
+TODO: this makes an unreachable object, memory leak -- solve it
 TODO: Remove duplicate hosts (from different interfaces,
                               priority lists of interfaces)
 TODO: Ask all hosts to provide a list of all the hosts they have access to,
@@ -31,7 +32,7 @@ TODO: create public keys and hijack connections from other connected
 TODO: see connection types ? (direct ethernet connections can be let unsecure
         for faster transfer speeds)
 TODO: Sync the file locations and correct mis-matches
-DONE: test ssh connection to each host (through ssh-keyscan)
+TODO: test ssh connection to each host (dummy connection attempt to check public key)
 TODO: Get list of data to synchronize from each host
 TODO: Basic sync network (basic double pass on star shape
                             from base machine)
@@ -92,6 +93,7 @@ struct host_list {
    char *name;
    char *algo;
    char *key;
+   char *ip;
    struct string_list *origin;
    struct string_list *destination;
    struct host_list *next;
@@ -117,6 +119,7 @@ struct host_list* insert_host(struct host_list *end,
     link->destination=destination;
     link->previous=end;
     link->next = NULL;
+    link->ip=NULL;
 
     if (end!=NULL)
     {
@@ -176,6 +179,9 @@ int main ()
     char word2[PATH_LENGTH];
     char word3[PATH_LENGTH];
     char word4[PATH_LENGTH];
+    struct string_list *temp_list;
+    struct string_list *temp_list2;
+    struct host_list *temp_host_list;
 
 // DONE: Get list of running network interfaces
     getifaddrs (&ifap);
@@ -277,7 +283,7 @@ int main ()
         return 0;
     }
 
-// TODO: Authentify open hosts
+// DONE: Authentify open hosts
     // first read host file
     sprintf(path, "%s/.bin/backup_hosts/hostlist",getenv("HOME"));
     if ((pipe_fp = fopen(path, "r")) == NULL)
@@ -320,9 +326,66 @@ int main ()
 
     // then scan ip signatures
     // finally compare hosts and ip signatures
+    for(temp_list=addresses;temp_list!=NULL;temp_list=temp_list->previous)
+    {
+        // get signature
+        sprintf(command, "ssh-keygen -lf <(ssh-keyscan -p %s %s 2>/dev/null)",PORT,temp_list->ip);
+        /* Create one way pipe line with call to popen() */
+        if (( pipe_fp = popen(command, "r")) != NULL)
+        {
+            // parse output
+            for(char *check= fgets( line, MAX_LINE_LENGTH, pipe_fp ); check!=NULL; check= fgets( line,  MAX_LINE_LENGTH, pipe_fp ))
+            {
+                sscanf( line, "%s %s %s (%s)", word1,  word2,  word3,  word4);
+                // check the formatting worjed as expected
+                // otherwise the error message doesn't have '('
+                if (strlen(word4)>0)
+                {
+                    // remove the last character since it keeps a parenthesis for some reason
+                    word4[strlen(word4)-1]='\0';
+                    // printf(word4);
+                    // find related host and add to it
+                    for(temp_host_list=hostList;temp_host_list!=NULL;temp_host_list=temp_host_list->previous)
+                    {
+                        // word4 is the algorithm
+                        // word2 is the key
+                        if (!strcmp(temp_host_list->algo,word4) && !strcmp(temp_host_list->key,word2))
+                        {
+                            // TODO: Remove duplicate hosts (from different interfaces,
+                            //                               priority lists of interfaces)
+                            temp_host_list->ip=temp_list->ip;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for(temp_host_list=hostList;temp_host_list!=NULL;temp_host_list=temp_host_list->previous)
+    {
+        if (temp_host_list->ip == NULL)
+        {
+            if (temp_host_list->previous!=NULL)
+                temp_host_list->previous->next=temp_host_list->next;
+            if (temp_host_list->next!=NULL)
+            {
+                temp_host_list->next->previous=temp_host_list->previous;
+                temp_host_list=temp_host_list->next; // for loop coherence
+            }
+            // TODO: this makes an unreachable object, memory leak -- solve it
+        }
+        else
+        {
+            printf("\nAuthentified host: %s (%s)\n",temp_host_list->name, temp_host_list->ip);
+        }
+    }
+    // for(temp_host_list=hostList;temp_host_list!=NULL;temp_host_list=temp_host_list->previous)
+    // {
+    //     printf("\nAuthentified host: %s (%s)\n",temp_host_list->name, temp_host_list->ip);
+    // }
 
-// TODO: Remove duplicate hosts (from different interfaces,
-//                               priority lists of interfaces)
+    
+
+
 // TODO: Ask all hosts to provide a list of all the hosts they have access to,
 //         and piggy-back their connection to access all
 // TODO: Sync possible host list, re-check all available hosts to see
