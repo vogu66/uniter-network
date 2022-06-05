@@ -27,5 +27,3 @@ Nmap is used to check network availability, so using this on a public network is
 ## About this code
 
 It's a bit messy, and is far from following all good practices, and should probably be split, organised, and a bunch of features should be added. It's just a minimum viable product to answer my most basic needs for now. But it works.
-
-## Licensing
