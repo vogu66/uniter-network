@@ -27,7 +27,7 @@ TODO: Ask all hosts to provide a list of all the hosts they have access to,
         and piggy-back their connection to access all
 TODO: Sync possible host list, re-check all available hosts to see
         if new ones are actually authentified
-TODO: Manage list of files to synchronize from each host, with the hose list
+TODO: Manage list of files to synchronize from each host, with the host list (correctly, cross-link and invert paths as needed or save things in a coherent way using name → path for each host and assemble them later on)
 TODO: create public keys and hijack connections from other connected
         computers to pair the new additions to all hosts on the network
 TODO: see connection types ? (direct ethernet connections can be let unsecure
@@ -395,6 +395,7 @@ int main ()
 //         and piggy-back their connection to access all
 // TODO: Sync possible host list, re-check all available hosts to see
 //         if new ones are actually authentified
+// TODO: Manage list of files to synchronize from each host, with the host list (correctly, cross-link and invert paths as needed or save things in a coherent way using name → path for each host and assemble them later on)
 // TODO: create public keys and hijack connections from other connected
 //         computers to pair the new additions to all hosts on the network
 // TODO: see connection types ? (direct ethernet connections can be let unsecure
@@ -455,7 +456,7 @@ int main ()
             while(1)
             {
                 sprintf(command,
-                    "unison -sshargs='-p %s -i ~/.ssh/%s' %s ssh://%s@%s/%s",
+                    "unison -perms 0 -auto -sshargs='-p %s -i ~/.ssh/%s' %s ssh://%s@%s/%s",
                     PORT,
                     hostList->name,
                     hostList->origin->ip,
