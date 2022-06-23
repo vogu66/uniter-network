@@ -419,7 +419,7 @@ int main ()
             while(1)
             {
                 sprintf(command,
-                    "unison -sshargs='-p %s -i ~/.ssh/%s' %s ssh://%s@%s/%s",
+                    "unison -perms 0 -auto -sshargs='-p %s -i ~/.ssh/%s' %s ssh://%s@%s/%s",
                     PORT,
                     hostList->name,
                     hostList->origin->ip,
